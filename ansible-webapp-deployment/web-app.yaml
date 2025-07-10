@@ -1,0 +1,58 @@
+---
+- name: Deploy a simple web application to EC2
+  hosts: web  # use "web" to match your inventory group name
+  become: yes
+  gather_facts: yes
+  vars_files:
+    - var.yaml
+
+  tasks:
+    - name: Ping the EC2 instance
+      ping:
+
+    - name: Install nginx web server
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
+      register: nginx_result
+
+    - name: Show nginx installation result
+      debug:
+        var: nginx_result
+
+    - name: Start and enable nginx service
+      service:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Create /var/www/html directory (already exists, but included for demo)
+      file:
+        path: /var/www/html
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: Create index.html with custom content
+      copy:
+        src: /workspaces/Ansible/ansible-webapp-deployment/index.html
+        dest: /var/www/html/index.html
+        # content: |
+        #   <!DOCTYPE html>
+        #   <html>
+        #   <head><title>{{ web_title }}</title></head>
+        #   <body>
+        #     <h1>Hello from {{ ansible_hostname }} using Ansible!</h1>
+        #   </body>
+        #   </html>
+
+    - name: Verify index.html exists
+      stat:
+        path: /var/www/html/index.html
+      register: webfile
+
+    - name: Show the file creation result
+      debug:
+        var: webfile.stat
