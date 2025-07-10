@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Pong</title>
+    <style>
+        /* Basic CSS for the game */
+        body {
+            margin: 0;
+            overflow: hidden; /* Hide scrollbars */
+            background-color: #1a0033; /* Dark purple background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Press Start 2P', cursive; /* Retro arcade font */
+            color: #e0e0e0; /* Light grey for general text */
+            flex-direction: column;
+            text-align: center;
+            /* Optional: Google Fonts import for 'Press Start 2P' */
+            /* @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap'); */
+        }
+
+        /* Fallback for font if not loaded */
+        body {
+            font-family: monospace, sans-serif;
+        }
+
+        h1 {
+            color: #00ffff; /* Cyan title */
+            margin-bottom: 10px;
+            text-shadow: 0 0 8px #00ffff, 0 0 15px #00ffff; /* Neon glow */
+            font-size: 2.5em;
+        }
+
+        #gameCanvas {
+            background-color: #000000; /* Pure black game area */
+            border: 3px solid #ff00ff; /* Magenta border */
+            box-shadow: 0 0 20px #ff00ff, 0 0 40px #ff00ff; /* Strong neon glow */
+            cursor: none; /* Hide default cursor */
+        }
+
+        .game-info {
+            margin-top: 15px;
+            font-size: 1.3em;
+            text-shadow: 0 0 5px #e0e0e0;
+        }
+
+        .game-info p {
+            margin: 5px 0;
+        }
+
+        #messageDisplay {
+            color: #00ff00; /* Bright green for messages */
+            font-size: 1.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 0 8px #00ff00;
+        }
+
+        #restartButton {
+            background-color: #008080; /* Teal button */
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            font-size: 1.2em;
+            cursor: pointer;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none; /* Hidden until game over */
+            transition: background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+        }
+
+        #restartButton:hover {
+            background-color: #006666;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        #restartButton:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Responsive adjustments for smaller screens */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8em;
+            }
+            #gameCanvas {
+                width: 95%; /* Make canvas responsive */
+                height: auto; /* Maintain aspect ratio */
+                max-width: 600px;
+            }
+            .game-info {
+                font-size: 1em;
+            }
+            #messageDisplay {
+                font-size: 1.2em;
+            }
+            #restartButton {
+                padding: 10px 20px;
+                font-size: 1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Neon Pong</h1>
+    <p id="messageDisplay">Press SPACE to Start!</p>
+    <canvas id="gameCanvas" width="600" height="400"></canvas>
+    <div class="game-info">
+        <p>Player Score: <span id="playerScoreDisplay">0</span></p>
+        <p>Computer Score: <span id="computerScoreDisplay">0</span></p>
+    </div>
+    <button id="restartButton">Play Again</button>
+
+    <script>
+        // --- JavaScript Game Logic ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const playerScoreDisplay = document.getElementById('playerScoreDisplay');
+        const computerScoreDisplay = document.getElementById('computerScoreDisplay');
+        const messageDisplay = document.getElementById('messageDisplay');
+        const restartButton = document.getElementById('restartButton');
+
+        // Game state variables
+        let playerScore = 0;
+        let computerScore = 0;
+        const maxScore = 5; // First to 5 wins
+        let gameRunning = false;
+        let animationFrameId;
+
+        // Game objects properties
+        const PADDLE_WIDTH = 10;
+        const PADDLE_HEIGHT = 80;
+        const BALL_SIZE = 10;
+        const PADDLE_SPEED = 5;
+        const BALL_INITIAL_SPEED = 4;
+        const BALL_MAX_SPEED = 10; // Cap ball speed to prevent it from becoming unplayable
+
+        // Player Paddle
+        const playerPaddle = {
+            x: 0,
+            y: canvas.height / 2 - PADDLE_HEIGHT / 2,
+            width: PADDLE_WIDTH,
+            height: PADDLE_HEIGHT,
+            color: '#00ffff', // Cyan
+            dy: 0 // Delta Y for movement
+        };
+
+        // Computer Paddle
+        const computerPaddle = {
+            x: canvas.width - PADDLE_WIDTH,
+            y: canvas.height / 2 - PADDLE_HEIGHT / 2,
+            width: PADDLE_WIDTH,
+            height: PADDLE_HEIGHT,
+            color: '#ff00ff', // Magenta
+            speed: 3 // AI speed
+        };
+
+        // Ball
+        const ball = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            size: BALL_SIZE,
+            color: '#ffff00', // Yellow
+            dx: BALL_INITIAL_SPEED, // Delta X
+            dy: BALL_INITIAL_SPEED // Delta Y
+        };
+
+        // Input handling
+        const keys = {};
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            if (e.key === ' ' && !gameRunning) {
+                startGame();
+            }
+        });
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+
+        /**
+         * Resets the ball to the center and gives it a random initial direction.
+         */
+        function resetBall() {
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height / 2;
+            ball.dx = (Math.random() > 0.5 ? 1 : -1) * BALL_INITIAL_SPEED; // Random horizontal direction
+            ball.dy = (Math.random() > 0.5 ? 1 : -1) * BALL_INITIAL_SPEED; // Random vertical direction
+        }
+
+        /**
+         * Draws a rectangle on the canvas.
+         * @param {number} x - X coordinate.
+         * @param {number} y - Y coordinate.
+         * @param {number} width - Width of the rectangle.
+         * @param {number} height - Height of the rectangle.
+         * @param {string} color - Color of the rectangle.
+         */
+        function drawRect(x, y, width, height, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, width, height);
+        }
+
+        /**
+         * Draws a circle on the canvas.
+         * @param {number} x - X coordinate of center.
+         * @param {number} y - Y coordinate of center.
+         * @param {number} radius - Radius of the circle.
+         * @param {string} color - Color of the circle.
+         */
+        function drawCircle(x, y, radius, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2, false);
+            ctx.fill();
+        }
+
+        /**
+         * Draws the game elements on the canvas.
+         */
+        function draw() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw background (optional, canvas background color handles this)
+            // drawRect(0, 0, canvas.width, canvas.height, '#000');
+
+            // Draw paddles
+            drawRect(playerPaddle.x, playerPaddle.y, playerPaddle.width, playerPaddle.height, playerPaddle.color);
+            drawRect(computerPaddle.x, computerPaddle.y, computerPaddle.width, computerPaddle.height, computerPaddle.color);
+
+            // Draw ball
+            drawCircle(ball.x, ball.y, ball.size / 2, ball.color);
+
+            // Draw center line (optional)
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]); // Dashed line
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.stroke();
+            ctx.setLineDash([]); // Reset line dash
+        }
+
+        /**
+         * Updates game logic: paddle movement, ball movement, collisions, scoring.
+         */
+        function update() {
+            if (!gameRunning) return;
+
+            // Player paddle movement
+            if (keys['ArrowUp'] || keys['w']) {
+                playerPaddle.y = Math.max(0, playerPaddle.y - PADDLE_SPEED);
+            }
+            if (keys['ArrowDown'] || keys['s']) {
+                playerPaddle.y = Math.min(canvas.height - playerPaddle.height, playerPaddle.y + PADDLE_SPEED);
+            }
+
+            // Computer paddle AI (simple tracking)
+            if (ball.dy < 0) { // Ball moving upwards
+                if (computerPaddle.y + computerPaddle.height / 2 > ball.y) {
+                    computerPaddle.y = Math.max(0, computerPaddle.y - computerPaddle.speed);
+                }
+            } else { // Ball moving downwards
+                if (computerPaddle.y + computerPaddle.height / 2 < ball.y) {
+                    computerPaddle.y = Math.min(canvas.height - computerPaddle.height, computerPaddle.y + computerPaddle.speed);
+                }
+            }
+
+
+            // Ball movement
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            // Ball collision with top/bottom walls
+            if (ball.y - ball.size / 2 < 0 || ball.y + ball.size / 2 > canvas.height) {
+                ball.dy *= -1; // Reverse vertical direction
+            }
+
+            // Ball collision with player paddle
+            if (
+                ball.x - ball.size / 2 < playerPaddle.x + playerPaddle.width &&
+                ball.x + ball.size / 2 > playerPaddle.x &&
+                ball.y - ball.size / 2 < playerPaddle.y + playerPaddle.height &&
+                ball.y + ball.size / 2 > playerPaddle.y
+            ) {
+                ball.dx *= -1; // Reverse horizontal direction
+                // Increase ball speed slightly on hit, but cap it
+                ball.dx = Math.min(BALL_MAX_SPEED, Math.abs(ball.dx) + 0.5) * Math.sign(ball.dx);
+                ball.dy = Math.min(BALL_MAX_SPEED, Math.abs(ball.dy) + 0.5) * Math.sign(ball.dy);
+            }
+
+            // Ball collision with computer paddle
+            if (
+                ball.x + ball.size / 2 > computerPaddle.x &&
+                ball.x - ball.size / 2 < computerPaddle.x + computerPaddle.width &&
+                ball.y - ball.size / 2 < computerPaddle.y + computerPaddle.height &&
+                ball.y + ball.size / 2 > computerPaddle.y
+            ) {
+                ball.dx *= -1; // Reverse horizontal direction
+                // Increase ball speed slightly on hit, but cap it
+                ball.dx = Math.min(BALL_MAX_SPEED, Math.abs(ball.dx) + 0.5) * Math.sign(ball.dx);
+                ball.dy = Math.min(BALL_MAX_SPEED, Math.abs(ball.dy) + 0.5) * Math.sign(ball.dy);
+            }
+
+            // Scoring
+            if (ball.x - ball.size / 2 < 0) { // Ball went past player paddle
+                computerScore++;
+                computerScoreDisplay.textContent = computerScore;
+                if (computerScore >= maxScore) {
+                    endGame('Computer Wins!');
+                } else {
+                    resetBall();
+                }
+            } else if (ball.x + ball.size / 2 > canvas.width) { // Ball went past computer paddle
+                playerScore++;
+                playerScoreDisplay.textContent = playerScore;
+                if (playerScore >= maxScore) {
+                    endGame('Player Wins!');
+                } else {
+                    resetBall();
+                }
+            }
+        }
+
+        /**
+         * Main game loop.
+         */
+        function gameLoop() {
+            update();
+            draw();
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        /**
+         * Starts the game.
+         */
+        function startGame() {
+            if (gameRunning) return;
+            gameRunning = true;
+            messageDisplay.style.display = 'none';
+            restartButton.style.display = 'none';
+            resetScores();
+            resetBall();
+            gameLoop();
+        }
+
+        /**
+         * Ends the game and displays the winner.
+         * @param {string} winnerMessage - Message indicating the winner.
+         */
+        function endGame(winnerMessage) {
+            gameRunning = false;
+            cancelAnimationFrame(animationFrameId);
+            messageDisplay.textContent = winnerMessage;
+            messageDisplay.style.display = 'block';
+            messageDisplay.style.color = '#00ff00'; // Green for win message
+            restartButton.style.display = 'block';
+        }
+
+        /**
+         * Resets scores to zero.
+         */
+        function resetScores() {
+            playerScore = 0;
+            computerScore = 0;
+            playerScoreDisplay.textContent = playerScore;
+            computerScoreDisplay.textContent = computerScore;
+        }
+
+        /**
+         * Initializes the game state.
+         */
+        function initializeGame() {
+            resetScores();
+            resetBall(); // Position ball but don't start moving yet
+            messageDisplay.textContent = 'Press SPACE to Start!';
+            messageDisplay.style.display = 'block';
+            messageDisplay.style.color = '#00ffff'; // Cyan for start message
+            restartButton.style.display = 'none';
+            gameRunning = false; // Ensure game is not running
+            draw(); // Draw initial state
+        }
+
+        // Event listener for restart button
+        restartButton.addEventListener('click', initializeGame);
+
+        // Initial setup when the page loads
+        window.onload = initializeGame;
+
+        // Make canvas responsive
+        window.addEventListener('resize', () => {
+            // Adjust canvas width/height if needed, but for a fixed aspect ratio game,
+            // it's often better to just scale the canvas via CSS and let the internal
+            // rendering handle it. For this simple game, we'll keep fixed dimensions
+            // and rely on the CSS media query for basic scaling.
+            // If you wanted dynamic canvas resolution, you'd recalculate canvas.width/height
+            // and redraw all elements proportionally.
+        });
+
+    </script>
+</body>
+</html>
