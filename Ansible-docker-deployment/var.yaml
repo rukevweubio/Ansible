@@ -1,0 +1,5 @@
+docker_hub_username: "rukevweubio" 
+docker_hub_password: "Comfort12345@"  
+image_name: "{{ docker_hub_username }}/neon-pong-game" 
+image_tag: "latest"
+app_source_dir: "./app
