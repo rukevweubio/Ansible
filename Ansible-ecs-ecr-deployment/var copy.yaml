@@ -1,0 +1,6 @@
+
+docker_username: rukevweubio
+docker_password: Comfort12345@
+image_name: "{{ docker_username }}/flask-app"
+image_tag: latest
+#ansible_python_interpreter: /home/codespace/.python/current/bin/python3

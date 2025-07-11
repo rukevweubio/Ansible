@@ -1,0 +1,31 @@
+- name: Build and push Docker image from local
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - var.yaml
+ 
+
+  tasks:
+    - name: Log in to Docker Hub
+      docker_login:
+        registry_url: https://index.docker.io/v1/
+        username: "{{ docker_username }}"
+        password: "{{ docker_password }}"
+
+    - name: Build Docker image
+      docker_image:
+        source: build
+        build:
+          path: .
+        name: "{{ image_name }}"
+        tag: "{{ image_tag }}"
+        push: false
+
+    - name: Push Docker image to Docker Hub
+      docker_image:
+        source: local
+        name: "{{ image_name }}"
+        tag: "{{ image_tag }}"
+        push: yes
+
