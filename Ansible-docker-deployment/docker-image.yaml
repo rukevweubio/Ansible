@@ -1,77 +1,31 @@
----
-- name: Build and Push Docker Image for Neon Pong
-  hosts: web
-  become: yes
+- name: Build and push Docker image from local
+  hosts: localhost
+  connection: local
+  gather_facts: false
   vars_files:
     - var.yaml
+ 
 
   tasks:
-    - name: Ensure Docker service is running
-      ansible.builtin.service:
-        name: docker
-        state: started
-        enabled: yes
-
-    - name: Ensure Docker is running
-      community.docker.docker_info:
-      register: docker_info
-
-    - name: Debug Docker info
-      debug:
-        msg: "Docker is running: {{ docker_info }}"
-
-    - name: Create application source directory if it doesn't exist
-      ansible.builtin.file:
-        path: "{{ app_source_dir }}"
-        state: directory
-        mode: '0755'
-
-    - name: Copy index.html to the build context
-      ansible.builtin.copy:
-        src: "./index.html"
-        dest: "{{ app_source_dir }}/index.html"
-        mode: '0644'
-
-    - name: Copy Dockerfile to the build context
-      ansible.builtin.copy:
-        src: "./Dockerfile"
-        dest: "{{ app_source_dir }}/Dockerfile"
-        mode: '0644'
-
-    - name: Copy nginx.conf to the build context
-      ansible.builtin.copy:
-        src: "./nginx.conf"
-        dest: "{{ app_source_dir }}/nginx.conf"
-        mode: '0644'
-
     - name: Log in to Docker Hub
-      community.docker.docker_login:
-        username: "{{ docker_hub_username }}"
-        password: "{{ docker_hub_password }}"
-        reauthorize: yes
-      become: no
+      docker_login:
+        registry_url: https://index.docker.io/v1/
+        username: "{{ docker_username }}"
+        password: "{{ docker_password }}"
 
     - name: Build Docker image
-      community.docker.docker_image:
+      docker_image:
+        source: build
         build:
-          path: "{{ app_source_dir }}"
-          dockerfile: Dockerfile
+          path: .
         name: "{{ image_name }}"
         tag: "{{ image_tag }}"
-        source: build
-        state: present
-      become: no
+        push: false
 
     - name: Push Docker image to Docker Hub
-      community.docker.docker_image:
+      docker_image:
+        source: local
         name: "{{ image_name }}"
         tag: "{{ image_tag }}"
         push: yes
-        source: local
-        state: present
-      become: no
 
-    - name: Clean up temporary build directory
-      ansible.builtin.file:
-        path: "{{ app_source_dir }}"
-        state: absent
