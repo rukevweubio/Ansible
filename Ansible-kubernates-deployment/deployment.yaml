@@ -3,8 +3,8 @@
   gather_facts: yes
   vars:
     app_name: my-car-game-app
-    dockerhub_image: rukevweubio/car-racing-app:latest
-    container_port: 5000
+    dockerhub_image: rukevweubio/ubio-app:latest
+    container_port: 3000
     replicas: 2
   tasks:
     - name: Deploy App

@@ -17,6 +17,7 @@
             annotations:
               nginx.ingress.kubernetes.io/rewrite-target: /
           spec:
+            ingressClassName: nginx
             rules:
               - host: "{{ ingress_hostname }}"
                 http:

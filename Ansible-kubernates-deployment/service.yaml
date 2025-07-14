@@ -3,7 +3,7 @@
   gather_facts: no
   vars:
     app_name:  my-car-game-app
-    container_port: 5000
+    container_port: 3000
   tasks:
     - name: Create Service
       kubernetes.core.k8s:
