@@ -1,0 +1,23 @@
+---
+- name: Load SQL data into MySQL database
+  hosts: web
+  become: yes
+  vars_files:
+    - var.yaml
+
+  vars:
+    sql_script: /tmp/init.sql
+
+  tasks:
+
+    - name: Copy SQL script to remote server
+      copy:
+        src: ./init.sql
+        dest: "{{ sql_script }}"
+        mode: '0644'
+
+    - name: Load SQL script into MySQL
+      shell: |
+        mysql -u {{ mysql_root_user }} -p{{ mysql_root_password }} {{ mysql_database }} < {{ sql_script }}
+      args:
+        executable: /bin/bash

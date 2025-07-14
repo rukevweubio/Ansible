@@ -1,0 +1,6 @@
+mysql_root_user: root
+mysql_root_password: root
+mysql_user: myuser
+mysql_password: mypass
+mysql_database: mydby
+ansible_python_interpreter: /usr/bin/python3
