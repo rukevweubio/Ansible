@@ -1,0 +1,13 @@
+# 1. Namespace File: namespace.yml
+- name: Create Namespace
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - name: Ensure Namespace Exists
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Namespace
+          metadata:
+            name: myapp

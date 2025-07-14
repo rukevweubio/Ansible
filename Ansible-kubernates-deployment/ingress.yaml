@@ -1,0 +1,30 @@
+- name: Create Ingress
+  hosts: localhost
+  gather_facts: no
+  vars:
+    app_name: my-car-game-app
+    ingress_hostname: app.example.com
+  tasks:
+    - name: Create Ingress
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: "{{ app_name }}-ingress"
+            namespace: myapp
+            annotations:
+              nginx.ingress.kubernetes.io/rewrite-target: /
+          spec:
+            rules:
+              - host: "{{ ingress_hostname }}"
+                http:
+                  paths:
+                    - path: /
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: "{{ app_name }}-svc"
+                          port:
+                            number: 80

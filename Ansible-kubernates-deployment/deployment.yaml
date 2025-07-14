@@ -1,0 +1,33 @@
+- name: Deploy App from Docker Hub
+  hosts: localhost
+  gather_facts: yes
+  vars:
+    app_name: my-car-game-app
+    dockerhub_image: rukevweubio/car-racing-app:latest
+    container_port: 5000
+    replicas: 2
+  tasks:
+    - name: Deploy App
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: "{{ app_name }}"
+            namespace: myapp
+          spec:
+            replicas: "{{ replicas }}"
+            selector:
+              matchLabels:
+                app: "{{ app_name }}"
+            template:
+              metadata:
+                labels:
+                  app: "{{ app_name }}"
+              spec:
+                containers:
+                  - name: "{{ app_name }}"
+                    image: "{{ dockerhub_image }}"
+                    ports:
+                      - containerPort: "{{ container_port }}"
